@@ -1,0 +1,24 @@
+{
+  "383938198625058828": [
+    {
+      "date": "2025-01-03",
+      "tasks": [
+        {
+          "id": 1,
+          "content": "완전 탐색 3문제 풀기",
+          "completed": false
+        },
+        {
+          "id": 2,
+          "content": "경험치 50 쌓기",
+          "completed": true
+        },
+        {
+          "id": 3,
+          "content": "탁이랑 밥먹기1231231",
+          "completed": false
+        }
+      ]
+    }
+  ]
+}
