@@ -223,6 +223,11 @@ export function handleCheckin(client) {
             interaction.user.id,
           );
 
+          if (!currentCheckin) {
+            await interaction.reply("오늘 등록된 체크인이 없습니다.");
+            return;
+          }
+
           // 해당 작업이 존재하는지 확인
           const targetTask = currentCheckin.tasks.find(
             (task) => task.id === taskId,
@@ -399,7 +404,7 @@ export function handleCheckin(client) {
           // 2) 결과가 없으면 안내 메시지 (ephemeral)
           if (!recentCheckin) {
             await interaction.reply({
-              content: "오늘 이외에 체크인 기록이 없습니다.",
+              content: "해당하는 체크인 기록이 없습니다.",
               ephemeral: true, // 본인만 보이도록
             });
             return;
