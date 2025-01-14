@@ -1,7 +1,7 @@
 // src/config/config.js
 export const RULES_MESSAGE_ID = "1324604515889975399";
 export const INTRODUCTION_CHANNEL_ID = "1324292114552455213";
-export const CHECKIN_CHANNEL_ID = "1328197113452036129";
+export const CHECKIN_CHANNEL_ID = "1324292114552455217";
 
 export const ROLES = {
     NEWBIE: "Newbie",

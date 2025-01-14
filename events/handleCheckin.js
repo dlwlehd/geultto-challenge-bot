@@ -376,7 +376,7 @@ export function handleCheckin(client) {
                     if (!recentCheckin) {
                         await interaction.reply({
                             content: "해당하는 체크인 기록이 없습니다.",
-                            ephemeral: true,
+                            ephemeral: true
                         });
                         return;
                     }
@@ -391,7 +391,7 @@ export function handleCheckin(client) {
                     await interaction.reply({
                         content: "오늘이 아닌 가장 최근 체크인 정보입니다:",
                         embeds: [embed],
-                        ephemeral: true,
+                        ephemeral: true
                     });
                     break;
                 }
@@ -471,7 +471,10 @@ export function handleCheckin(client) {
             }
         } catch (error) {
             logger.error("체크인 명령어 처리 중 오류 발생", error);
-            await interaction.reply("오류가 발생했습니다. 다시 시도해주세요.");
+            await interaction.reply({
+                content: "오류가 발생했습니다. 다시 시도해주세요.",
+                ephemeral: true
+            });
         }
     });
 
@@ -480,6 +483,9 @@ export function handleCheckin(client) {
         if (!interaction.isModalSubmit()) return;
 
         try {
+            // 즉시 defer 처리
+            await interaction.deferReply();
+
             if (interaction.customId === "checkin-modal") {
                 const tasks = [];
                 for (let i = 1; i <= 5; i++) {
@@ -488,143 +494,7 @@ export function handleCheckin(client) {
                 }
 
                 if (tasks.length === 0) {
-                    await interaction.reply("최소 하나의 할 일을 입력해주세요.");
-                    return;
-                }
-
-                const checkin = await checkinManager.createCheckin(
-                    interaction.user.id,
-                    tasks,
-                );
-
-                const embed = await createCheckinEmbed(checkin, interaction.user);
-                await interaction.reply({embeds: [embed]});
-
-                const checkinChannel = await client.channels.fetch(CHECKIN_CHANNEL_ID);
-                if (checkinChannel) {
-                    await checkinChannel.send({
-                        content: `<@${interaction.user.id}> 님이 **오늘의 체크인**을 등록했습니다!`,
-                        embeds: [embed],
-                    });
-                }
-            } else if (interaction.customId === "checkin-edit-modal") {
-                const tasks = [];
-                for (let i = 1; i <= 5; i++) {
-                    const task = interaction.fields.getTextInputValue(`task-${i}`);
-                    if (task) tasks.push(task);
-                }
-
-                if (tasks.length === 0) {
-                    await interaction.reply("최소 하나의 할 일을 입력해주세요.");
-                    return;
-                }
-
-                const updatedCheckin = await checkinManager.updateTodayCheckin(
-                    interaction.user.id,
-                    tasks,
-                );
-
-                if (!updatedCheckin) {
-                    await interaction.reply("체크인 수정 중 오류가 발생했습니다.");
-                    return;
-                }
-
-                const embed = await createCheckinEmbed(
-                    updatedCheckin,
-                    interaction.user,
-                    true,
-                );
-                await interaction.reply({embeds: [embed]});
-            }
-        } catch (error) {
-            logger.error("모달 제출 처리 중 오류 발생", error);
-            await interaction.reply("오류가 발생했습니다. 다시 시도해주세요.");
-        }
-    });
-
-    // 버튼 클릭 이벤트 처리
-// 모달 제출 처리
-    client.on(Events.InteractionCreate, async (interaction) => {
-        if (!interaction.isModalSubmit()) return;
-
-        try {
-            if (interaction.customId === "checkin-modal") {
-                const tasks = [];
-                for (let i = 1; i <= 5; i++) {
-                    const task = interaction.fields.getTextInputValue(`task-${i}`);
-                    if (task) tasks.push(task);
-                }
-
-                if (tasks.length === 0) {
-                    await interaction.reply("최소 하나의 할 일을 입력해주세요.");
-                    return;
-                }
-
-                const checkin = await checkinManager.createCheckin(
-                    interaction.user.id,
-                    tasks,
-                );
-
-                const embed = await createCheckinEmbed(checkin, interaction.user);
-                await interaction.reply({embeds: [embed]});
-
-                const checkinChannel = await client.channels.fetch(CHECKIN_CHANNEL_ID);
-                if (checkinChannel) {
-                    await checkinChannel.send({
-                        content: `<@${interaction.user.id}> 님이 **오늘의 체크인**을 등록했습니다!`,
-                        embeds: [embed],
-                    });
-                }
-            } else if (interaction.customId === "checkin-edit-modal") {
-                const tasks = [];
-                for (let i = 1; i <= 5; i++) {
-                    const task = interaction.fields.getTextInputValue(`task-${i}`);
-                    if (task) tasks.push(task);
-                }
-
-                if (tasks.length === 0) {
-                    await interaction.reply("최소 하나의 할 일을 입력해주세요.");
-                    return;
-                }
-
-                const updatedCheckin = await checkinManager.updateTodayCheckin(
-                    interaction.user.id,
-                    tasks,
-                );
-
-                if (!updatedCheckin) {
-                    await interaction.reply("체크인 수정 중 오류가 발생했습니다.");
-                    return;
-                }
-
-                const embed = await createCheckinEmbed(
-                    updatedCheckin,
-                    interaction.user,
-                    true,
-                );
-                await interaction.reply({embeds: [embed]});
-            }
-        } catch (error) {
-            logger.error("모달 제출 처리 중 오류 발생", error);
-            await interaction.reply("오류가 발생했습니다. 다시 시도해주세요.");
-        }
-    });
-
-    // 버튼 클릭 이벤트 처리
-    // handleCheckin.js의 모달 제출 처리 부분 수정
-    client.on(Events.InteractionCreate, async (interaction) => {
-        if (!interaction.isModalSubmit()) return;
-
-        try {
-            if (interaction.customId === "checkin-modal") {
-                const tasks = [];
-                for (let i = 1; i <= 5; i++) {
-                    const task = interaction.fields.getTextInputValue(`task-${i}`);
-                    if (task) tasks.push(task);
-                }
-
-                if (tasks.length === 0) {
-                    await interaction.reply({
+                    await interaction.editReply({
                         content: "최소 하나의 할 일을 입력해주세요.",
                         ephemeral: true
                     });
@@ -638,7 +508,7 @@ export function handleCheckin(client) {
                     );
 
                     const embed = await createCheckinEmbed(checkin, interaction.user);
-                    await interaction.reply({embeds: [embed]});
+                    await interaction.editReply({ embeds: [embed] });
 
                     const checkinChannel = await client.channels.fetch(CHECKIN_CHANNEL_ID);
                     if (checkinChannel) {
@@ -649,7 +519,7 @@ export function handleCheckin(client) {
                     }
                 } catch (error) {
                     logger.error("체크인 생성 중 오류 발생", error);
-                    await interaction.reply({
+                    await interaction.editReply({
                         content: "체크인 생성 중 오류가 발생했습니다.",
                         ephemeral: true
                     });
@@ -662,7 +532,7 @@ export function handleCheckin(client) {
                 }
 
                 if (tasks.length === 0) {
-                    await interaction.reply({
+                    await interaction.editReply({
                         content: "최소 하나의 할 일을 입력해주세요.",
                         ephemeral: true
                     });
@@ -676,7 +546,7 @@ export function handleCheckin(client) {
                     );
 
                     if (!updatedCheckin) {
-                        await interaction.reply({
+                        await interaction.editReply({
                             content: "체크인 수정 중 오류가 발생했습니다.",
                             ephemeral: true
                         });
@@ -688,10 +558,10 @@ export function handleCheckin(client) {
                         interaction.user,
                         true,
                     );
-                    await interaction.reply({embeds: [embed]});
+                    await interaction.editReply({ embeds: [embed] });
                 } catch (error) {
                     logger.error("체크인 수정 중 오류 발생", error);
-                    await interaction.reply({
+                    await interaction.editReply({
                         content: "체크인 수정 중 오류가 발생했습니다.",
                         ephemeral: true
                     });
@@ -699,12 +569,20 @@ export function handleCheckin(client) {
             }
         } catch (error) {
             logger.error("모달 제출 처리 중 오류 발생", error);
-            // 이미 응답했을 수 있으므로 조건부로 응답
-            if (!interaction.replied && !interaction.deferred) {
-                await interaction.reply({
+
+            try {
+                if (!interaction.replied && !interaction.deferred) {
+                    await interaction.deferReply({
+                        ephemeral: true
+                    });
+                }
+
+                await interaction.editReply({
                     content: "오류가 발생했습니다. 다시 시도해주세요.",
                     ephemeral: true
                 });
+            } catch (followUpError) {
+                logger.error("에러 응답 처리 중 추가 오류 발생", followUpError);
             }
         }
     });
@@ -720,8 +598,7 @@ export function handleCheckin(client) {
 
                 try {
                     const result = await checkinManager.updateUserResetHour(interaction.user.id, hour);
-                    // KST 변환 제거 (이미 KST로 받음)
-                    const effectiveDate = result.effectiveDate;  // 9시간 추가 제거
+                    const effectiveDate = result.effectiveDate;
                     const formattedDate = effectiveDate.toLocaleDateString('ko-KR', {
                         month: 'long',
                         day: 'numeric',
@@ -766,7 +643,7 @@ export function handleCheckin(client) {
 
                     await interaction.update({
                         embeds: [cancelEmbed],
-                        components: [], // 버튼 제거
+                        components: [],
                         ephemeral: true
                     });
                 } catch (error) {
