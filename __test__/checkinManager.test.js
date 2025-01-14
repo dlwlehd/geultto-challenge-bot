@@ -257,3 +257,189 @@ describe('체크인 시간 변경 시나리오 테스트', () => {
         expect(jan14Checkin.tasks[0].completed).toBe(false);
     });
 });
+
+describe('Streak 계산 테스트', () => {
+    let checkinManager;
+    const userId = 'test-user-123';
+    let mockCheckins = {};
+
+    beforeEach(async () => {
+        jest.useFakeTimers();
+        checkinManager = new CheckinManager();
+
+        // Mock 파일 시스템 작업
+        jest.spyOn(checkinManager, 'loadResetTimes').mockResolvedValue({});
+        jest.spyOn(checkinManager, 'saveResetTimes').mockResolvedValue();
+        jest.spyOn(checkinManager, 'loadPendingResets').mockResolvedValue({});
+        jest.spyOn(checkinManager, 'savePendingResets').mockResolvedValue();
+
+        // checkins mock을 동적으로 관리
+        jest.spyOn(checkinManager, 'loadCheckins').mockImplementation(() => Promise.resolve(mockCheckins));
+        jest.spyOn(checkinManager, 'saveCheckins').mockImplementation((checkins) => {
+            mockCheckins = checkins;
+            return Promise.resolve();
+        });
+    });
+
+    afterEach(() => {
+        jest.useRealTimers();
+        jest.clearAllMocks();
+        mockCheckins = {};
+    });
+
+    describe('기본 streak 계산', () => {
+        it('체크인이 없을 때 streak은 0이어야 함', async () => {
+            const streak = await checkinManager.calculateStreak(userId);
+            expect(streak).toBe(0);
+        });
+
+        it('첫 체크인의 streak은 1이어야 함', async () => {
+            // 현재 시각 설정
+            jest.setSystemTime(new Date('2024-01-13T05:00:00Z')); // 14:00 KST
+
+            await checkinManager.createCheckin(userId, ['Task 1']);
+            const streak = await checkinManager.calculateStreak(userId);
+            expect(streak).toBe(1);
+        });
+
+        it('연속된 3일의 체크인은 streak 3을 반환해야 함', async () => {
+            mockCheckins = {
+                [userId]: [
+                    {
+                        date: '2024-01-13',
+                        tasks: [{ id: 1, content: 'Task 1', completed: false }]
+                    },
+                    {
+                        date: '2024-01-12',
+                        tasks: [{ id: 1, content: 'Task 1', completed: true }]
+                    },
+                    {
+                        date: '2024-01-11',
+                        tasks: [{ id: 1, content: 'Task 1', completed: true }]
+                    }
+                ]
+            };
+
+            jest.setSystemTime(new Date('2024-01-13T05:00:00Z')); // 14:00 KST
+            const streak = await checkinManager.calculateStreak(userId);
+            expect(streak).toBe(3);
+        });
+    });
+
+    describe('streak 이어짐/끊김 시나리오', () => {
+        it('하루를 건너뛰면 streak이 끊어져야 함', async () => {
+            mockCheckins = {
+                [userId]: [
+                    {
+                        date: '2024-01-13',
+                        tasks: [{ id: 1, content: 'Task 1', completed: false }]
+                    },
+                    {
+                        date: '2024-01-11',
+                        tasks: [{ id: 1, content: 'Task 1', completed: true }]
+                    }
+                ]
+            };
+
+            jest.setSystemTime(new Date('2024-01-13T05:00:00Z'));
+            const streak = await checkinManager.calculateStreak(userId);
+            expect(streak).toBe(1); // 중간에 12일이 없으므로 13일 하루만 카운트
+        });
+
+        it('오늘 체크인이 없으면 streak이 0이어야 함', async () => {
+            mockCheckins = {
+                [userId]: [
+                    {
+                        date: '2024-01-12',
+                        tasks: [{ id: 1, content: 'Task 1', completed: true }]
+                    },
+                    {
+                        date: '2024-01-11',
+                        tasks: [{ id: 1, content: 'Task 1', completed: true }]
+                    }
+                ]
+            };
+
+            jest.setSystemTime(new Date('2024-01-13T05:00:00Z'));
+            const streak = await checkinManager.calculateStreak(userId);
+            expect(streak).toBe(0);
+        });
+    });
+
+    describe('최장 streak 계산', () => {
+        it('전체 기록 중 최장 연속 기록을 반환해야 함', async () => {
+            mockCheckins = {
+                [userId]: [
+                    // 현재 진행중인 3일 연속
+                    {
+                        date: '2024-01-13',
+                        tasks: [{ id: 1, content: 'Task 1', completed: false }]
+                    },
+                    {
+                        date: '2024-01-12',
+                        tasks: [{ id: 1, content: 'Task 1', completed: true }]
+                    },
+                    {
+                        date: '2024-01-11',
+                        tasks: [{ id: 1, content: 'Task 1', completed: true }]
+                    },
+                    // 1일 간격
+                    {
+                        date: '2024-01-09',
+                        tasks: [{ id: 1, content: 'Task 1', completed: true }]
+                    },
+                    // 과거의 5일 연속
+                    {
+                        date: '2024-01-07',
+                        tasks: [{ id: 1, content: 'Task 1', completed: true }]
+                    },
+                    {
+                        date: '2024-01-06',
+                        tasks: [{ id: 1, content: 'Task 1', completed: true }]
+                    },
+                    {
+                        date: '2024-01-05',
+                        tasks: [{ id: 1, content: 'Task 1', completed: true }]
+                    },
+                    {
+                        date: '2024-01-04',
+                        tasks: [{ id: 1, content: 'Task 1', completed: true }]
+                    },
+                    {
+                        date: '2024-01-03',
+                        tasks: [{ id: 1, content: 'Task 1', completed: true }]
+                    }
+                ]
+            };
+
+            jest.setSystemTime(new Date('2024-01-13T05:00:00Z'));
+            const maxStreak = await checkinManager.calculateMaxStreak(userId);
+            const currentStreak = await checkinManager.calculateStreak(userId);
+
+            expect(maxStreak).toBe(5); // 1/3 ~ 1/7의 5일 연속이 최장 기록
+            expect(currentStreak).toBe(3); // 현재 1/11 ~ 1/13의 3일 연속 진행중
+        });
+    });
+
+    describe('시간대 변경과 streak 계산', () => {
+        it('시간대 변경 후에도 streak이 정상적으로 계산되어야 함', async () => {
+            // 1. 14시에 첫 체크인
+            jest.setSystemTime(new Date('2024-01-13T05:00:00Z')); // 14:00 KST
+            await checkinManager.createCheckin(userId, ['Task 1']);
+
+            // 2. 15시로 시간대 변경
+            await checkinManager.updateUserResetHour(userId, 15);
+
+            // 3. 다음날 14시 (아직 초기화 전)
+            jest.setSystemTime(new Date('2024-01-14T05:00:00Z')); // 다음날 14:00 KST
+            let streak = await checkinManager.calculateStreak(userId);
+            expect(streak).toBe(1); // 아직 13일의 체크인이 유효
+
+            // 4. 다음날 16시 (초기화 후)
+            jest.setSystemTime(new Date('2024-01-14T07:00:00Z')); // 다음날 16:00 KST
+            await checkinManager.createCheckin(userId, ['New Task']);
+            streak = await checkinManager.calculateStreak(userId);
+            expect(streak).toBe(2); // 두 날의 체크인 모두 카운트
+        });
+    });
+});
