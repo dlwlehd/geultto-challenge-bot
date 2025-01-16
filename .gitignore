@@ -130,4 +130,7 @@ dist
 .pnp.*
 
 # Replit debugger
-.breakpointsdata/
+.breakpoints
+
+data/
+data/*
