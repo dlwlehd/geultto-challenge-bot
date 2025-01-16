@@ -400,37 +400,69 @@ export function handleCheckin(client) {
                     const hour = interaction.options.getInteger("hour");
 
                     try {
-                        // 먼저 3일 제한 체크
+                        // 1) 3일 제한 & 보류 중인 변경 여부 확인
                         const timeCheck = await checkinManager.canUpdateResetHour(interaction.user.id);
                         if (!timeCheck.canUpdate) {
-                            const nextAvailableKST = new Date(timeCheck.nextAvailable.getTime() + 9 * 60 * 60 * 1000);
-                            const formattedDate = nextAvailableKST.toLocaleDateString('ko-KR', {
-                                month: 'long',
-                                day: 'numeric',
-                                hour: 'numeric',
-                                minute: 'numeric'
-                            });
+                            // 보류 중인 변경이 있는 경우 (예: timeCheck.reason === 'pending')
+                            if (timeCheck.reason === '대기 중인 시간 변경이 이미 존재합니다.') {
+                                const pendingEmbed = new EmbedBuilder()
+                                    .setColor(0xFF0000)
+                                    .setTitle('❌ 변경 제한')
+                                    .setDescription('이미 예약된 시간 변경이 있습니다. 적용 대기 중에는 다시 변경할 수 없습니다.');
 
-                            const restrictionEmbed = new EmbedBuilder()
-                                .setColor(0xFF0000)
-                                .setTitle('❌ 변경 제한')
-                                .setDescription('초기화 시간은 3일에 한 번만 변경할 수 있습니다.')
-                                .addFields({
-                                    name: '다음 변경 가능 시간',
-                                    value: formattedDate
+                                await interaction.reply({
+                                    embeds: [pendingEmbed],
+                                    ephemeral: true
+                                });
+                                return;
+                            }
+
+                            // 3일 제한에 걸린 경우(nextAvailable 존재)
+                            if (timeCheck.nextAvailable) {
+                                // nextAvailable은 UTC 기준으로 넘어온다고 가정
+                                const nextAvailableKST = new Date(timeCheck.nextAvailable.getTime() + 9 * 60 * 60 * 1000);
+                                const formattedDate = nextAvailableKST.toLocaleDateString('ko-KR', {
+                                    month: 'long',
+                                    day: 'numeric',
+                                    hour: 'numeric',
+                                    minute: 'numeric'
                                 });
 
+                                const restrictionEmbed = new EmbedBuilder()
+                                    .setColor(0xFF0000)
+                                    .setTitle('❌ 변경 제한')
+                                    .setDescription('초기화 시간은 3일에 한 번만 변경할 수 있습니다.')
+                                    .addFields({
+                                        name: '다음 변경 가능 시간',
+                                        value: formattedDate
+                                    });
+
+                                await interaction.reply({
+                                    embeds: [restrictionEmbed],
+                                    ephemeral: true
+                                });
+                                return;
+                            }
+
+                            // 그 외 다른 사유가 있다면(오류 메시지 등)
+                            // timeCheck.reason이 문자열 형태일 수도 있으니 적절히 처리
+                            const genericEmbed = new EmbedBuilder()
+                                .setColor(0xFF0000)
+                                .setTitle('❌ 변경 제한')
+                                .setDescription(timeCheck.reason || '알 수 없는 이유로 시간 변경이 불가합니다.');
+
                             await interaction.reply({
-                                embeds: [restrictionEmbed],
+                                embeds: [genericEmbed],
                                 ephemeral: true
                             });
                             return;
                         }
 
-                        // 3일 제한을 통과한 경우, 현재 설정 확인
+                        // 2) 여기까지 오면 변경 가능
+                        // 현재 설정된 resetHour 조회
                         const currentHour = await checkinManager.getUserResetHour(interaction.user.id);
 
-                        // 확인 버튼으로 진행
+                        // 확인/취소 버튼
                         const confirmRow = new ActionRowBuilder()
                             .addComponents(
                                 new ButtonBuilder()
@@ -443,6 +475,7 @@ export function handleCheckin(client) {
                                     .setStyle(ButtonStyle.Secondary)
                             );
 
+                        // 경고 메시지 Embed
                         const warningEmbed = new EmbedBuilder()
                             .setColor(0xFFA500)
                             .setTitle('⚠️ 체크인 초기화 시간 변경')
@@ -508,7 +541,7 @@ export function handleCheckin(client) {
                     );
 
                     const embed = await createCheckinEmbed(checkin, interaction.user);
-                    await interaction.editReply({ embeds: [embed] });
+                    await interaction.editReply({embeds: [embed]});
 
                     const checkinChannel = await client.channels.fetch(CHECKIN_CHANNEL_ID);
                     if (checkinChannel) {
@@ -558,7 +591,7 @@ export function handleCheckin(client) {
                         interaction.user,
                         true,
                     );
-                    await interaction.editReply({ embeds: [embed] });
+                    await interaction.editReply({embeds: [embed]});
                 } catch (error) {
                     logger.error("체크인 수정 중 오류 발생", error);
                     await interaction.editReply({
